@@ -72,7 +72,7 @@ export default function App() {
     setReportError(null)
     const summary = buildAnalysisSummary(frameData)
     try {
-      const response = await fetch('https://motion.lla.ma/analyze', {
+      const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: summary, type: 'post_session' }),
