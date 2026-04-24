@@ -329,6 +329,15 @@ export default function App() {
                 </div>
                 <div className="drop-text">Drop a movement video</div>
                 <div className="drop-hint">Analyze any exercise · MP4 · MOV · WEBM</div>
+                <div className="drop-tips">
+                  <div className="drop-tips-title">Best results</div>
+                  <div className="drop-tips-grid">
+                    <div className="drop-tip"><span className="tip-icon">↗</span>Film from the side — full body in frame</div>
+                    <div className="drop-tip"><span className="tip-icon">↗</span>Single person, uncluttered background</div>
+                    <div className="drop-tip"><span className="tip-icon">↗</span>Good lighting, stable camera</div>
+                    <div className="drop-tip"><span className="tip-icon">↗</span>10–30 seconds of continuous movement</div>
+                  </div>
+                </div>
                 <input type="file" accept="video/*" className="file-input" onChange={handleFileSelect} />
               </label>
             )}

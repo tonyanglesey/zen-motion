@@ -167,6 +167,46 @@
 
 .file-input { display: none; }
 
+/* ─── Drop zone tips ─── */
+.drop-tips {
+  margin-top: 28px;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  text-align: left;
+  width: 320px;
+}
+
+.drop-tips-title {
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.drop-tips-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drop-tip {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.tip-icon {
+  color: var(--accent-cyan);
+  flex-shrink: 0;
+  font-size: 10px;
+}
+
 /* ─── Overlays ─── */
 .scanlines {
   position: absolute;
