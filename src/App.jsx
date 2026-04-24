@@ -81,7 +81,10 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: summary, type: 'post_session' }),
       })
-      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}))
+        throw new Error(body.detail || body.error || `${response.status} ${response.statusText}`)
+      }
       const report = await response.json()
       setAnalysisReport(report)
     } catch (err) {
