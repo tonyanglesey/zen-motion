@@ -1,8 +1,33 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { usePoseDetection } from './usePoseDetection'
 import { renderOverlay, computeAngles, computeVelocity } from './renderer'
-import { COLOR_SCHEMES, DEFAULT_SETTINGS } from './constants'
+import { COLOR_SCHEMES, DEFAULT_SETTINGS, JOINT_ANGLES } from './constants'
+import AnalysisReport from './AnalysisReport'
 import './App.css'
+
+function buildAnalysisSummary(frameData) {
+  const stats = {}
+  for (const name of Object.keys(JOINT_ANGLES)) {
+    const vals = frameData.map(f => f.angles[name]).filter(v => v !== undefined)
+    if (vals.length === 0) continue
+    const avg = Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+    stats[name] = {
+      avg,
+      min: Math.min(...vals),
+      max: Math.max(...vals),
+      flagged_frames: vals.filter(v => v < 45 || v > 170).length,
+    }
+  }
+  const velocities = frameData.map(f => f.velocity).filter(v => v > 0)
+  const avg_velocity = velocities.length > 0
+    ? parseFloat((velocities.reduce((a, b) => a + b, 0) / velocities.length).toFixed(1))
+    : 0
+  const pairs = [['L Shoulder', 'R Shoulder'], ['L Hip', 'R Hip'], ['L Knee', 'R Knee'], ['L Elbow', 'R Elbow']]
+  const asymmetry_detected = pairs.some(
+    ([l, r]) => stats[l] && stats[r] && Math.abs(stats[l].avg - stats[r].avg) > 15
+  )
+  return { exercise: 'general', duration_frames: frameData.length, fps: 36, joints: stats, avg_velocity, asymmetry_detected }
+}
 
 export default function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS)
@@ -18,6 +43,9 @@ export default function App() {
   const [angles, setAngles] = useState({})
   const [velocity, setVelocity] = useState(0)
   const [playbackRate, setPlaybackRate] = useState(1)
+  const [analysisReport, setAnalysisReport] = useState(null)
+  const [reportLoading, setReportLoading] = useState(false)
+  const [reportError, setReportError] = useState(null)
 
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
@@ -27,6 +55,7 @@ export default function App() {
   const animRef = useRef(null)
   const settingsRef = useRef(settings)
   const lastVideoTimeRef = useRef(0)
+  const frameDataRef = useRef([])
 
   const { status: modelStatus, init: initModel, detect } = usePoseDetection()
 
@@ -35,6 +64,28 @@ export default function App() {
 
   const toggle = (key) => setSettings(s => ({ ...s, [key]: !s[key] }))
   const setParam = (key, value) => setSettings(s => ({ ...s, [key]: value }))
+
+  const generateAnalysisReport = useCallback(async (frameData) => {
+    if (frameData.length < 30) return
+    setReportLoading(true)
+    setAnalysisReport(null)
+    setReportError(null)
+    const summary = buildAnalysisSummary(frameData)
+    try {
+      const response = await fetch('https://motion.lla.ma/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: summary, type: 'post_session' }),
+      })
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+      const report = await response.json()
+      setAnalysisReport(report)
+    } catch (err) {
+      setReportError(err.message)
+    } finally {
+      setReportLoading(false)
+    }
+  }, [])
 
   // ─── File handling ───
   const loadVideo = useCallback((file) => {
@@ -51,6 +102,9 @@ export default function App() {
       trailHistoryRef.current = []
       frameRef.current = 0
       setFrameCount(0)
+      frameDataRef.current = []
+      setAnalysisReport(null)
+      setReportError(null)
     }
   }, [])
 
@@ -104,7 +158,8 @@ export default function App() {
       setConfidence(avg)
 
       // Compute analysis data
-      setAngles(computeAngles(landmarks))
+      const currentAngles = computeAngles(landmarks)
+      setAngles(currentAngles)
 
       const trail = trailHistoryRef.current
       trail.push(landmarks.map(l => ({
@@ -114,7 +169,9 @@ export default function App() {
       })))
       if (trail.length > s.trailLength) trail.shift()
 
-      setVelocity(computeVelocity(trail, canvas.width, canvas.height))
+      const currentVelocity = computeVelocity(trail, canvas.width, canvas.height)
+      setVelocity(currentVelocity)
+      frameDataRef.current.push({ angles: currentAngles, velocity: currentVelocity })
       renderOverlay(ctx, landmarks, s, sc, trail, canvas.width, canvas.height)
     } else {
       setPointCount(0)
@@ -151,8 +208,12 @@ export default function App() {
     frameRef.current = 0
     setFrameCount(0)
     trailHistoryRef.current = []
+    frameDataRef.current = []
     setAngles({})
     setVelocity(0)
+    setAnalysisReport(null)
+    setReportError(null)
+    setReportLoading(false)
     cancelAnimationFrame(animRef.current)
     const ctx = canvasRef.current?.getContext('2d')
     if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
@@ -209,6 +270,18 @@ export default function App() {
 
   useEffect(() => () => cancelAnimationFrame(animRef.current), [])
 
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    const handleEnded = () => {
+      cancelAnimationFrame(animRef.current)
+      setIsPlaying(false)
+      generateAnalysisReport(frameDataRef.current)
+    }
+    video.addEventListener('ended', handleEnded)
+    return () => video.removeEventListener('ended', handleEnded)
+  }, [generateAnalysisReport])
+
   const statusLabel = modelStatus === 'loading' ? 'Loading pose model...'
     : modelStatus === 'error' ? 'Model failed to load — refresh to retry'
     : modelStatus === 'ready' && !videoLoaded ? 'Model ready — drop a video to analyze'
@@ -250,7 +323,7 @@ export default function App() {
                 <input type="file" accept="video/*" className="file-input" onChange={handleFileSelect} />
               </label>
             )}
-            <video ref={videoRef} playsInline loop style={{ display: videoLoaded ? 'block' : 'none' }} />
+            <video ref={videoRef} playsInline style={{ display: videoLoaded ? 'block' : 'none' }} />
             <canvas ref={canvasRef} style={{ display: videoLoaded ? 'block' : 'none' }} />
             {videoLoaded && settings.scanlines && <div className="scanlines" />}
             {videoLoaded && (
@@ -365,6 +438,8 @@ export default function App() {
               ))}
             </div>
           </div>
+
+          <AnalysisReport report={analysisReport} loading={reportLoading} error={reportError} />
 
           <div className="panel-section">
             <div className="panel-title">Analysis</div>
