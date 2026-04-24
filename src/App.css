@@ -552,6 +552,37 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* ─── Movement Analysis Report ─── */
+/* ─── Detected Patterns ─── */
+.detected-patterns {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pattern-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 4px 0;
+  color: var(--text-secondary);
+}
+
+.pattern-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pattern-high .pattern-dot   { background: #ff6040; box-shadow: 0 0 6px rgba(255,96,64,0.5); }
+.pattern-medium .pattern-dot { background: var(--accent-gold); box-shadow: 0 0 6px rgba(240,192,64,0.4); }
+.pattern-low .pattern-dot    { background: var(--text-dim); }
+
+.pattern-high   { color: var(--text-primary); }
+.pattern-medium { color: var(--text-secondary); }
+.pattern-low    { color: var(--text-dim); }
+
 .report-loading {
   display: flex;
   align-items: center;

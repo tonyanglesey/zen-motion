@@ -20,9 +20,13 @@ Analyze the movement data and return a JSON coaching report with exactly these f
 - strengths (array of up to 3 strings)
 - improvements (array of up to 3 strings, specific and actionable)
 - priority_fix (single most important cue, one sentence)
+The data includes detected_patterns — pre-computed flags for asymmetry, restricted range, high flag rates, and hyperextension risk. Use these to make your coaching specific and accurate.
 Return raw JSON only — no markdown, no code fences.`
 
-  const userMessage = `Analyze this movement session:\n${JSON.stringify(data, null, 2)}`
+  const patternSummary = data.detected_patterns?.length > 0
+    ? `\n\nPre-detected issues:\n${data.detected_patterns.map(p => `- [${p.severity}] ${p.label}`).join('\n')}`
+    : ''
+  const userMessage = `Analyze this movement session:\n${JSON.stringify(data, null, 2)}${patternSummary}`
 
   let claudeRes
   try {

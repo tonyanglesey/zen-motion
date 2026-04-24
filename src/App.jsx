@@ -3,6 +3,7 @@ import { usePoseDetection } from './usePoseDetection'
 import { renderOverlay, computeAngles, computeVelocity } from './renderer'
 import { COLOR_SCHEMES, DEFAULT_SETTINGS, JOINT_ANGLES } from './constants'
 import AnalysisReport from './AnalysisReport'
+import { detectMistakes } from './mistakes'
 import './App.css'
 
 function buildAnalysisSummary(frameData) {
@@ -26,7 +27,8 @@ function buildAnalysisSummary(frameData) {
   const asymmetry_detected = pairs.some(
     ([l, r]) => stats[l] && stats[r] && Math.abs(stats[l].avg - stats[r].avg) > 15
   )
-  return { exercise: 'general', duration_frames: frameData.length, fps: 36, joints: stats, avg_velocity, asymmetry_detected }
+  const detected_patterns = detectMistakes(stats, frameData.length)
+  return { exercise: 'general', duration_frames: frameData.length, fps: 36, joints: stats, avg_velocity, asymmetry_detected, detected_patterns }
 }
 
 export default function App() {
@@ -46,6 +48,7 @@ export default function App() {
   const [analysisReport, setAnalysisReport] = useState(null)
   const [reportLoading, setReportLoading] = useState(false)
   const [reportError, setReportError] = useState(null)
+  const [detectedPatterns, setDetectedPatterns] = useState([])
 
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
@@ -71,6 +74,7 @@ export default function App() {
     setAnalysisReport(null)
     setReportError(null)
     const summary = buildAnalysisSummary(frameData)
+    setDetectedPatterns(summary.detected_patterns)
     try {
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -105,6 +109,7 @@ export default function App() {
       frameDataRef.current = []
       setAnalysisReport(null)
       setReportError(null)
+      setDetectedPatterns([])
     }
   }, [])
 
@@ -214,6 +219,7 @@ export default function App() {
     setAnalysisReport(null)
     setReportError(null)
     setReportLoading(false)
+    setDetectedPatterns([])
     cancelAnimationFrame(animRef.current)
     const ctx = canvasRef.current?.getContext('2d')
     if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
@@ -439,7 +445,7 @@ export default function App() {
             </div>
           </div>
 
-          <AnalysisReport report={analysisReport} loading={reportLoading} error={reportError} />
+          <AnalysisReport report={analysisReport} loading={reportLoading} error={reportError} patterns={detectedPatterns} />
 
           <div className="panel-section">
             <div className="panel-title">Analysis</div>

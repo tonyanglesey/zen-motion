@@ -1,14 +1,26 @@
-export default function AnalysisReport({ report, loading, error }) {
-  if (!loading && !report && !error) return null
+export default function AnalysisReport({ report, loading, error, patterns = [] }) {
+  if (!loading && !report && !error && patterns.length === 0) return null
 
   return (
     <div className="panel-section">
       <div className="panel-title">Movement Analysis</div>
 
+      {patterns.length > 0 && (
+        <div className="detected-patterns">
+          <div className="report-section-label">Detected Patterns</div>
+          {patterns.map((p, i) => (
+            <div key={i} className={`pattern-item pattern-${p.severity}`}>
+              <span className="pattern-dot" />
+              <span>{p.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {loading && (
         <div className="report-loading">
           <div className="report-spinner" />
-          <span className="report-loading-text">Analyzing movement data...</span>
+          <span className="report-loading-text">Generating coaching report...</span>
         </div>
       )}
 
